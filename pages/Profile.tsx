@@ -5,9 +5,11 @@ import { Settings, Package, Heart, Wallet } from 'lucide-react';
 interface ProfileProps {
   user: User;
   onViewOrders: () => void;
+  showToast: (msg: string) => void;
+  onOpenMerchant?: () => void;
 }
 
-export const Profile: React.FC<ProfileProps> = ({ user, onViewOrders }) => {
+export const Profile: React.FC<ProfileProps> = ({ user, onViewOrders, showToast, onOpenMerchant }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -24,7 +26,9 @@ export const Profile: React.FC<ProfileProps> = ({ user, onViewOrders }) => {
                 ))}
              </div>
           </div>
-          <Settings className="text-slate-400" />
+          <button onClick={() => showToast("设置功能开发中")}>
+            <Settings className="text-slate-400" />
+          </button>
         </div>
         
         {/* Stats */}
@@ -56,19 +60,30 @@ export const Profile: React.FC<ProfileProps> = ({ user, onViewOrders }) => {
             hasBadge 
             onClick={onViewOrders}
          />
-         <MenuItem icon={<Heart size={20} />} label="心愿单 / 蹲好价" />
-         <MenuItem icon={<Wallet size={20} />} label="钱包 / 退款" />
+         <MenuItem 
+            icon={<Heart size={20} />} 
+            label="心愿单 / 蹲好价" 
+            onClick={() => showToast("心愿单功能开发中")}
+         />
+         <MenuItem 
+            icon={<Wallet size={20} />} 
+            label="钱包 / 退款" 
+            onClick={() => showToast("钱包功能开发中")}
+         />
       </div>
 
       {/* Merchant Entry */}
       <div className="px-4 mt-6">
-         <div className="bg-slate-800 rounded-xl p-4 text-white flex items-center justify-between shadow-lg">
+         <div 
+            onClick={onOpenMerchant}
+            className="bg-slate-800 rounded-xl p-4 text-white flex items-center justify-between shadow-lg active:scale-95 transition cursor-pointer"
+         >
             <div>
-               <h3 className="font-bold text-sm">成为车头/商家</h3>
-               <p className="text-xs text-slate-400 mt-1">发布拼团，管理发货，赚取佣金</p>
+               <h3 className="font-bold text-sm">我是车头/商家</h3>
+               <p className="text-xs text-slate-400 mt-1">点击进入工作台：开箱、录卡、发货</p>
             </div>
             <button className="bg-white text-slate-900 text-xs font-bold px-4 py-2 rounded-full">
-               去认证
+               进入
             </button>
          </div>
       </div>

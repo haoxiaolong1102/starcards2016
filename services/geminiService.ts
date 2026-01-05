@@ -34,7 +34,7 @@ export const generateRecruitmentCopy = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-latest',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
     });
     return response.text || "生成失败，请重试。";

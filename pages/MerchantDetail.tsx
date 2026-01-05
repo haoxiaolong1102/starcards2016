@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, Star, Users, MapPin, MessageSquare } from 'lucide-react';
+import { ChevronLeft, Star } from 'lucide-react';
 import { Merchant, Car } from '../types';
 import { CarCard } from '../components/CarCard';
 
@@ -8,10 +8,11 @@ interface MerchantDetailProps {
   cars: Car[];
   onBack: () => void;
   onCarClick: (car: Car) => void;
+  showToast: (msg: string) => void;
 }
 
-export const MerchantDetail: React.FC<MerchantDetailProps> = ({ merchant, cars, onBack, onCarClick }) => {
-  // Filter cars that belong to this merchant (mock logic: match by name or return all for demo if random name)
+export const MerchantDetail: React.FC<MerchantDetailProps> = ({ merchant, cars, onBack, onCarClick, showToast }) => {
+  // Filter cars that belong to this merchant
   const merchantCars = cars.filter(c => c.hostName === merchant.name || c.hostName.includes("商家")); 
 
   return (
@@ -44,7 +45,10 @@ export const MerchantDetail: React.FC<MerchantDetailProps> = ({ merchant, cars, 
                         </div>
                      </div>
                 </div>
-                <button className="bg-violet-600 text-white text-xs font-bold px-5 py-2 rounded-full shadow-lg shadow-violet-200 active:scale-95 transition">
+                <button 
+                  onClick={() => showToast("已关注该商家")}
+                  className="bg-violet-600 text-white text-xs font-bold px-5 py-2 rounded-full shadow-lg shadow-violet-200 active:scale-95 transition"
+                >
                     关注
                 </button>
             </div>
@@ -80,8 +84,8 @@ export const MerchantDetail: React.FC<MerchantDetailProps> = ({ merchant, cars, 
       {/* Tabs */}
       <div className="flex items-center gap-6 px-6 border-b border-gray-200 mb-4">
          <button className="pb-2 border-b-2 border-slate-900 font-bold text-sm text-slate-900">全部车队</button>
-         <button className="pb-2 border-b-2 border-transparent font-medium text-sm text-slate-400">动态</button>
-         <button className="pb-2 border-b-2 border-transparent font-medium text-sm text-slate-400">评价</button>
+         <button onClick={() => showToast("暂无新动态")} className="pb-2 border-b-2 border-transparent font-medium text-sm text-slate-400">动态</button>
+         <button onClick={() => showToast("暂无评价")} className="pb-2 border-b-2 border-transparent font-medium text-sm text-slate-400">评价</button>
       </div>
 
       {/* Car List */}

@@ -7,8 +7,11 @@ import { Profile } from './pages/Profile';
 import { MerchantList, MOCK_MERCHANTS } from './pages/MerchantList';
 import { MerchantDetail } from './pages/MerchantDetail';
 import { OrderList } from './pages/OrderList';
+import { MerchantDashboard } from './pages/MerchantDashboard'; // Import
+import { OrderResult } from './pages/OrderResult'; // Import
 import { PaymentModal } from './components/PaymentModal';
-import { Car, CarStatus, HostType, Merchant, Order } from './types';
+import { Toast } from './components/Toast';
+import { Car, CarStatus, HostType, Merchant, Order, CardResult } from './types';
 
 // --- MOCK DATA ---
 const MOCK_USER = {
@@ -85,11 +88,12 @@ const INITIAL_CARS = generateCars(10);
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
-  // State for different sub-views (simulated router)
-  const [subView, setSubView] = useState<'none' | 'carDetail' | 'merchantDetail' | 'orders'>('none');
+  // State for different sub-views
+  const [subView, setSubView] = useState<'none' | 'carDetail' | 'merchantDetail' | 'orders' | 'merchantDashboard' | 'orderResult'>('none');
   
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
   const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null);
+  const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
   
   const [cars, setCars] = useState<Car[]>(INITIAL_CARS);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -97,6 +101,13 @@ export default function App() {
   // Payment flow state
   const [showPayment, setShowPayment] = useState(false);
   const [pendingPurchase, setPendingPurchase] = useState<{items: {name:string, count:number}[], total: number} | null>(null);
+
+  // Toast state
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+  };
 
   // Routing Logic
   const handleCarClick = (car: Car) => {
@@ -118,10 +129,21 @@ export default function App() {
     setSubView('none');
     setSelectedCar(null);
     setSelectedMerchant(null);
+    setViewingOrder(null);
+  };
+
+  // Entry to Merchant Dashboard
+  const handleOpenMerchantDashboard = () => {
+      setSubView('merchantDashboard');
+  };
+
+  // Entry to Order Results
+  const handleViewOrderResult = (order: Order) => {
+      setViewingOrder(order);
+      setSubView('orderResult');
   };
 
   const handlePublish = (data: any) => {
-    console.log("Published:", data);
     const newCar: Car = {
         ...BASE_CAR_1,
         id: `new_${Date.now()}`,
@@ -134,7 +156,7 @@ export default function App() {
         createdAt: new Date().toISOString()
     };
     setCars([newCar, ...cars]);
-    alert("发车成功！已回到大厅");
+    showToast("发车成功！已回到大厅");
     setActiveTab('home');
     setSubView('none');
   };
@@ -149,19 +171,19 @@ export default function App() {
   const handlePurchaseConfirm = () => {
       if (!selectedCar || !pendingPurchase) return;
 
-      // 1. Create Order
       const newOrder: Order = {
           id: `ord_${Date.now()}`,
+          carId: selectedCar.id, // Store Car ID
           carTitle: selectedCar.title,
           carImage: selectedCar.coverImage,
           items: pendingPurchase.items,
           totalPrice: pendingPurchase.total,
           status: 'PAID',
-          date: new Date().toLocaleDateString()
+          date: new Date().toLocaleDateString(),
+          hits: [] // Empty initially
       };
       setOrders([newOrder, ...orders]);
 
-      // 2. Update Car Slots (Decrease available spots) in mock data
       const updatedCars = cars.map(c => {
           if (c.id === selectedCar.id) {
               const updatedSlots = c.slots.map(slot => {
@@ -177,67 +199,104 @@ export default function App() {
       });
       setCars(updatedCars);
 
-      // 3. Reset UI
       setShowPayment(false);
       setPendingPurchase(null);
-      setSubView('orders'); // Redirect to orders
-      setActiveTab('profile'); // Switch tab context
+      setSubView('orders'); 
+      setActiveTab('profile'); 
+      showToast("支付成功！");
+  };
+
+  // --- MERCHANT LOGIC: DISTRIBUTE CARDS ---
+  const handleUpdateCarStatus = (carId: string, status: CarStatus, results: Record<string, CardResult[]>) => {
+      // 1. Update Car Status in global list
+      const updatedCars = cars.map(c => c.id === carId ? { ...c, status: status } : c);
+      setCars(updatedCars);
+
+      // 2. Distribute Cards to Orders
+      // Logic: Loop through all orders for this car. If order has "White Jingting" slot, give them the "Bai Jingting" results.
+      // NOTE: In a real app, we distribute specifically (e.g. random or round robin). 
+      // For this demo: We just copy ALL the uploaded hits for an artist to the user who bought that artist.
+      const updatedOrders = orders.map(order => {
+          if (order.carId === carId) {
+              const orderHits: CardResult[] = [];
+              
+              // Check what the user bought
+              order.items.forEach(item => {
+                  const hitsForArtist = results[item.name];
+                  if (hitsForArtist && hitsForArtist.length > 0) {
+                      orderHits.push(...hitsForArtist);
+                  }
+              });
+
+              return { 
+                  ...order, 
+                  status: 'OPENED' as const, // Force TS type
+                  hits: orderHits 
+              };
+          }
+          return order;
+      });
+      
+      setOrders(updatedOrders);
+      showToast("开箱完成！已自动分卡");
+      setSubView('none'); // Go back to main
+      setActiveTab('home');
+  };
+
+  const handleRequestShipping = () => {
+      if (viewingOrder) {
+          const updatedOrders = orders.map(o => o.id === viewingOrder.id ? { ...o, status: 'SHIPPED' as const } : o);
+          setOrders(updatedOrders);
+          
+          // Update local view state immediately for UI feedback
+          setViewingOrder({ ...viewingOrder, status: 'SHIPPED' });
+          showToast("申请成功！仓库将在 24h 内发货");
+      }
   };
 
   // View Router
   const renderContent = () => {
     // 1. Full Screen Sub-Views
     if (subView === 'carDetail' && selectedCar) {
-      return (
-        <CarDetail 
-          car={selectedCar} 
-          onBack={handleBackToMain}
-          onPurchase={handlePurchaseStart}
-        />
-      );
+      return <CarDetail car={selectedCar} onBack={handleBackToMain} onPurchase={handlePurchaseStart} showToast={showToast} />;
     }
     if (subView === 'merchantDetail' && selectedMerchant) {
-        return (
-            <MerchantDetail 
-                merchant={selectedMerchant}
-                cars={cars} // Pass full list to filter inside
-                onBack={handleBackToMain}
-                onCarClick={handleCarClick}
-            />
-        );
+        return <MerchantDetail merchant={selectedMerchant} cars={cars} onBack={handleBackToMain} onCarClick={handleCarClick} showToast={showToast} />;
     }
     if (subView === 'orders') {
-        return <OrderList orders={orders} onBack={() => { setSubView('none'); setActiveTab('profile'); }} />;
+        return <OrderList orders={orders} onBack={() => { setSubView('none'); setActiveTab('profile'); }} showToast={showToast} onViewResult={handleViewOrderResult} />;
+    }
+    // New Routes
+    if (subView === 'merchantDashboard') {
+        return <MerchantDashboard cars={cars} onBack={handleBackToMain} onUpdateCarStatus={handleUpdateCarStatus} showToast={showToast} />;
+    }
+    if (subView === 'orderResult' && viewingOrder) {
+        return <OrderResult order={viewingOrder} onBack={() => setSubView('orders')} showToast={showToast} onRequestShipping={handleRequestShipping} />;
     }
 
     // 2. Tab Views
     if (activeTab === 'create') {
-      return (
-        <CreateCar 
-          onBack={() => setActiveTab('home')}
-          onPublish={handlePublish}
-        />
-      );
+      return <CreateCar onBack={() => setActiveTab('home')} onPublish={handlePublish} />;
     }
 
     switch (activeTab) {
-      case 'home':
-        return <Home cars={cars} onCarClick={handleCarClick} />;
-      case 'merchants':
-        return <MerchantList onMerchantClick={handleMerchantClick} />;
-      case 'profile':
-        return <Profile user={MOCK_USER} onViewOrders={handleViewOrders} />;
-      default:
-        return <Home cars={cars} onCarClick={handleCarClick} />;
+      case 'home': return <Home cars={cars} onCarClick={handleCarClick} />;
+      case 'merchants': return <MerchantList onMerchantClick={handleMerchantClick} />;
+      case 'profile': return <Profile user={MOCK_USER} onViewOrders={handleViewOrders} showToast={showToast} onOpenMerchant={handleOpenMerchantDashboard} />;
+      default: return <Home cars={cars} onCarClick={handleCarClick} />;
     }
   };
 
   return (
     <>
-        <Layout activeTab={activeTab} onTabChange={(tab) => {
-            setSubView('none'); // Reset subview when changing tabs
+        <Layout 
+          activeTab={activeTab} 
+          onTabChange={(tab) => {
+            setSubView('none'); 
             setActiveTab(tab);
-        }}>
+          }}
+          hideNav={subView !== 'none'}
+        >
         {renderContent()}
         </Layout>
 
@@ -248,6 +307,8 @@ export default function App() {
                 onConfirm={handlePurchaseConfirm}
             />
         )}
+
+        {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage(null)} />}
     </>
   );
 }

@@ -42,6 +42,7 @@ export interface User {
   name: string;
   avatar: string;
   favoriteArtists: string[]; // e.g. ["白敬亭", "范丞丞"]
+  isMerchant?: boolean; // Add capability to switch view
 }
 
 export interface Merchant {
@@ -56,12 +57,22 @@ export interface Merchant {
   description: string;
 }
 
+export interface CardResult {
+  id: string;
+  imageUrl: string;
+  name: string; // e.g. "SSP 亲签"
+  rarity: 'R' | 'SR' | 'SSR' | 'SSP';
+  artistName: string;
+}
+
 export interface Order {
   id: string;
+  carId: string; // Link back to car
   carTitle: string;
   carImage: string;
-  items: { name: string; count: number }[];
+  items: { name: string; count: number }[]; // e.g. "白敬亭" x 2
   totalPrice: number;
-  status: 'PAID' | 'SHIPPED' | 'COMPLETED';
+  status: 'PAID' | 'OPENED' | 'SHIPPED'; // Added OPENED
   date: string;
+  hits?: CardResult[]; // The cards won in this order
 }

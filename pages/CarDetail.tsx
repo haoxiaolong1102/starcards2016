@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Share2, Clock, MapPin, Truck, AlertCircle, MessageSquare } from 'lucide-react';
+import { ChevronLeft, Share2, Clock, Truck, AlertCircle } from 'lucide-react';
 import { Car } from '../types';
 
 interface CarDetailProps {
   car: Car;
   onBack: () => void;
   onPurchase: (items: { name: string; count: number }[], totalCost: number) => void;
+  showToast: (msg: string) => void;
 }
 
-export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase }) => {
+export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, showToast }) => {
   const [selectedSlots, setSelectedSlots] = useState<Record<string, number>>({});
   
   const handleSlotChange = (slotId: string, delta: number, max: number) => {
@@ -39,7 +40,7 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase })
   };
 
   return (
-    <div className="bg-white min-h-screen relative pb-24">
+    <div className="bg-white min-h-screen relative pb-32"> {/* Increased bottom padding */}
       {/* Header Image */}
       <div className="relative h-60 bg-gray-200">
         <img src={car.coverImage} className="w-full h-full object-cover" alt="Cover" />
@@ -51,7 +52,7 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase })
             <ChevronLeft size={24} />
           </button>
           <div className="flex gap-3">
-             <button className="bg-black/20 backdrop-blur-md p-2 rounded-full active:scale-90 transition">
+             <button onClick={() => showToast("已生成海报链接，请粘贴分享")} className="bg-black/20 backdrop-blur-md p-2 rounded-full active:scale-90 transition">
                 <Share2 size={20} />
              </button>
           </div>
@@ -81,7 +82,10 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase })
             <p className="text-xs text-slate-400">已发车 28 次 · 0 差评</p>
           </div>
         </div>
-        <button className="text-violet-600 border border-violet-600 px-3 py-1 rounded-full text-xs font-medium active:bg-violet-50">
+        <button 
+          onClick={() => showToast("私信功能开发中")}
+          className="text-violet-600 border border-violet-600 px-3 py-1 rounded-full text-xs font-medium active:bg-violet-50"
+        >
           私信
         </button>
       </div>
@@ -120,7 +124,7 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase })
             const isFull = available === 0;
 
             return (
-              <div key={slot.id} className={`flex items-center justify-between p-3 rounded-xl border ${currentSelected > 0 ? 'border-violet-500 bg-violet-50' : 'border-gray-100 bg-white'}`}>
+              <div key={slot.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${currentSelected > 0 ? 'border-violet-500 bg-violet-50 shadow-sm' : 'border-gray-100 bg-white'}`}>
                 <div className="flex items-center gap-3">
                    <div className="relative">
                       <img src={slot.avatarUrl} className={`w-12 h-12 rounded-full object-cover ${isFull ? 'grayscale' : ''}`} alt={slot.name} />
@@ -143,7 +147,7 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase })
                     <button 
                       onClick={() => handleSlotChange(slot.id, -1, available)}
                       disabled={currentSelected === 0}
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-lg leading-none pb-1 transition-colors ${currentSelected === 0 ? 'bg-gray-100 text-gray-400' : 'bg-white border border-violet-200 text-violet-600'}`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-lg leading-none pb-1 transition-colors active:scale-90 ${currentSelected === 0 ? 'bg-gray-100 text-gray-400' : 'bg-white border border-violet-200 text-violet-600'}`}
                     >
                       -
                     </button>
@@ -151,7 +155,7 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase })
                     <button 
                        onClick={() => handleSlotChange(slot.id, 1, available)}
                        disabled={currentSelected >= available}
-                       className="w-7 h-7 rounded-full bg-violet-600 text-white flex items-center justify-center text-lg leading-none pb-1 shadow-md active:scale-90 transition"
+                       className="w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center text-lg leading-none pb-1 shadow-md active:scale-90 transition"
                     >
                       +
                     </button>
@@ -166,21 +170,21 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase })
       </div>
 
       {/* Sticky Bottom Bar */}
-      <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-4 safe-area-pb z-50 shadow-lg">
+      <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 p-4 pb-8 z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
          <div className="flex items-center justify-between max-w-md mx-auto">
             <div className="flex flex-col">
                <span className="text-[10px] text-slate-500">已选 {totalCount} 份</span>
                <div className="flex items-baseline gap-1">
                   <span className="text-xs text-red-500 font-bold">¥</span>
-                  <span className="text-xl text-red-500 font-bold">{totalCost}</span>
+                  <span className="text-2xl text-red-500 font-black tracking-tight">{totalCost}</span>
                </div>
             </div>
             <button 
                onClick={handleCheckout}
                disabled={totalCount === 0}
-               className={`px-8 py-3 rounded-full font-bold text-sm shadow-lg transform transition active:scale-95 ${totalCount === 0 ? 'bg-gray-300 text-white cursor-not-allowed' : 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white'}`}
+               className={`px-10 py-3.5 rounded-full font-bold text-sm shadow-xl transform transition active:scale-95 ${totalCount === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white animate-pulse'}`}
             >
-               立即上车
+               {totalCount === 0 ? '请先选位置' : '立即上车'}
             </button>
          </div>
       </div>
