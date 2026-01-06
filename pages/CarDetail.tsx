@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Share2, Clock, Truck, AlertCircle } from 'lucide-react';
-import { Car } from '../types';
+import { ChevronLeft, Share2, Clock, Truck, AlertCircle, Users, FileText, ChevronRight } from 'lucide-react';
+import { Car, CarStatus } from '../types';
 
 interface CarDetailProps {
   car: Car;
   onBack: () => void;
   onPurchase: (items: { name: string; count: number }[], totalCost: number) => void;
+  onHostClick: (hostName: string) => void; // Added prop
   showToast: (msg: string) => void;
 }
 
-export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, showToast }) => {
+export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, onHostClick, showToast }) => {
   const [selectedSlots, setSelectedSlots] = useState<Record<string, number>>({});
   
   const handleSlotChange = (slotId: string, delta: number, max: number) => {
@@ -31,6 +32,12 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, s
   
   const totalCount = Object.values(selectedSlots).reduce((a: number, b: number) => a + b, 0);
 
+  // Stats for Progress
+  const totalSpots = car.slots.reduce((acc, s) => acc + s.totalSpots, 0);
+  const takenSpots = car.slots.reduce((acc, s) => acc + s.takenSpots, 0);
+  const percent = Math.round((takenSpots / totalSpots) * 100);
+  const remainingSpots = totalSpots - takenSpots;
+
   const handleCheckout = () => {
       const items = Object.entries(selectedSlots).map(([id, count]) => {
           const slot = car.slots.find(s => s.id === id);
@@ -39,8 +46,10 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, s
       onPurchase(items, totalCost);
   };
 
+  const isCarFull = car.status === CarStatus.FULL || car.status === CarStatus.OPENED || car.status === CarStatus.SHIPPED;
+
   return (
-    <div className="bg-white min-h-screen relative pb-32"> {/* Increased bottom padding */}
+    <div className="bg-white min-h-screen relative pb-32"> 
       {/* Header Image */}
       <div className="relative h-60 bg-gray-200">
         <img src={car.coverImage} className="w-full h-full object-cover" alt="Cover" />
@@ -68,23 +77,50 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, s
         </div>
       </div>
 
-      {/* Host Info */}
+      {/* Progress Bar Area (IMPORTANT) */}
+      <div className="px-4 py-4 border-b border-gray-100 bg-violet-50/50">
+          <div className="flex justify-between items-end mb-2">
+              <div className="text-sm font-bold text-slate-800 flex items-center gap-1">
+                  <Users size={16} className="text-violet-600" />
+                  拼团进度
+                  {isCarFull && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded ml-2">已满员</span>}
+              </div>
+              <div className="text-xs text-slate-500">
+                  <span className="text-violet-600 font-bold">{takenSpots}</span> / {totalSpots} 席
+              </div>
+          </div>
+          <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden mb-1">
+              <div 
+                  className={`h-full rounded-full transition-all duration-500 ${isCarFull ? 'bg-green-500' : 'bg-gradient-to-r from-violet-500 to-fuchsia-500'}`} 
+                  style={{ width: `${percent}%` }}
+              ></div>
+          </div>
+          <p className="text-[10px] text-slate-400 text-right">
+              {isCarFull ? '所有位置已售罄，等待商家开箱' : `还差 ${remainingSpots} 个位置即可开箱`}
+          </p>
+      </div>
+
+      {/* Host Info - CLICKABLE NOW */}
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden">
+        <div 
+            onClick={() => onHostClick(car.hostName)}
+            className="flex items-center gap-2 flex-1 cursor-pointer active:opacity-70 transition-opacity"
+        >
+          <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden border border-gray-100">
              <img src={`https://picsum.photos/seed/${car.hostName}/200`} className="w-full h-full object-cover" alt="host" />
           </div>
           <div>
             <div className="flex items-center gap-1">
                 <span className="font-bold text-sm text-slate-800">{car.hostName}</span>
                 <span className="text-[10px] bg-slate-100 text-slate-500 px-1 rounded">信誉 {car.hostRating}</span>
+                <ChevronRight size={14} className="text-slate-300" />
             </div>
-            <p className="text-xs text-slate-400">已发车 28 次 · 0 差评</p>
+            <p className="text-xs text-slate-400">点击查看该商家所有拼团</p>
           </div>
         </div>
         <button 
           onClick={() => showToast("私信功能开发中")}
-          className="text-violet-600 border border-violet-600 px-3 py-1 rounded-full text-xs font-medium active:bg-violet-50"
+          className="text-violet-600 border border-violet-600 px-3 py-1 rounded-full text-xs font-medium active:bg-violet-50 ml-2"
         >
           私信
         </button>
@@ -105,10 +141,22 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, s
            <span>规则：单人归主，CP卡轮流，周边抽奖</span>
         </div>
       </div>
+      
+      {/* EXTRA EXPLANATION (Special Note) */}
+      {car.extraNote && (
+          <div className="mx-4 my-4 bg-orange-50 border border-orange-100 rounded-lg p-3">
+              <h3 className="flex items-center gap-1 text-xs font-bold text-orange-700 mb-1">
+                  <FileText size={12} /> 特别说明
+              </h3>
+              <p className="text-xs text-orange-800/80 leading-relaxed whitespace-pre-wrap">
+                  {car.extraNote}
+              </p>
+          </div>
+      )}
 
       {/* Description */}
       <div className="px-4 py-4 border-b border-gray-100">
-        <h3 className="font-bold text-sm mb-2 text-slate-800">车头喊话</h3>
+        <h3 className="font-bold text-sm mb-2 text-slate-800">车头喊话 & 规则</h3>
         <p className="text-sm text-slate-600 whitespace-pre-line leading-relaxed bg-gray-50 p-3 rounded-lg">
           {car.description}
         </p>
@@ -121,28 +169,28 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, s
           {car.slots.map(slot => {
             const available = slot.totalSpots - slot.takenSpots;
             const currentSelected = selectedSlots[slot.id] || 0;
-            const isFull = available === 0;
+            const isSoldOut = available === 0;
 
             return (
-              <div key={slot.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${currentSelected > 0 ? 'border-violet-500 bg-violet-50 shadow-sm' : 'border-gray-100 bg-white'}`}>
+              <div key={slot.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isSoldOut ? 'bg-gray-50 border-gray-100 opacity-60' : (currentSelected > 0 ? 'border-violet-500 bg-violet-50 shadow-sm' : 'border-gray-100 bg-white')}`}>
                 <div className="flex items-center gap-3">
                    <div className="relative">
-                      <img src={slot.avatarUrl} className={`w-12 h-12 rounded-full object-cover ${isFull ? 'grayscale' : ''}`} alt={slot.name} />
+                      <img src={slot.avatarUrl} className={`w-12 h-12 rounded-full object-cover ${isSoldOut ? 'grayscale' : ''}`} alt={slot.name} />
                       {slot.isHot && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] px-1 rounded-full">HOT</span>}
                    </div>
                    <div>
-                      <h4 className={`font-bold text-sm ${isFull ? 'text-slate-400' : 'text-slate-800'}`}>{slot.name}</h4>
+                      <h4 className={`font-bold text-sm ${isSoldOut ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{slot.name}</h4>
                       <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-violet-600 font-bold text-sm">¥{slot.price}</span>
-                          <span className={`text-xs ${available < 3 ? 'text-red-400' : 'text-slate-400'}`}>
-                             {isFull ? '已满' : `余 ${available}`}
+                          <span className={`text-xs ${isSoldOut ? 'text-slate-400' : (available < 3 ? 'text-red-400' : 'text-slate-400')}`}>
+                             {isSoldOut ? '已售罄' : `余 ${available}`}
                           </span>
                       </div>
                    </div>
                 </div>
 
                 {/* Counter */}
-                {!isFull ? (
+                {!isSoldOut ? (
                   <div className="flex items-center gap-3">
                     <button 
                       onClick={() => handleSlotChange(slot.id, -1, available)}
@@ -155,13 +203,15 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, s
                     <button 
                        onClick={() => handleSlotChange(slot.id, 1, available)}
                        disabled={currentSelected >= available}
-                       className="w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center text-lg leading-none pb-1 shadow-md active:scale-90 transition"
+                       className={`w-8 h-8 rounded-full text-white flex items-center justify-center text-lg leading-none pb-1 shadow-md active:scale-90 transition ${currentSelected >= available ? 'bg-gray-300' : 'bg-violet-600'}`}
                     >
                       +
                     </button>
                   </div>
                 ) : (
-                  <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2 py-1 rounded">满员</span>
+                  <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-full">
+                     被抢光
+                  </span>
                 )}
               </div>
             );
@@ -179,13 +229,24 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, s
                   <span className="text-2xl text-red-500 font-black tracking-tight">{totalCost}</span>
                </div>
             </div>
-            <button 
-               onClick={handleCheckout}
-               disabled={totalCount === 0}
-               className={`px-10 py-3.5 rounded-full font-bold text-sm shadow-xl transform transition active:scale-95 ${totalCount === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white animate-pulse'}`}
-            >
-               {totalCount === 0 ? '请先选位置' : '立即上车'}
-            </button>
+            
+            {/* Logic: If car is FULL, show "Wait for Open". Else if user selected nothing, disable. Else Show "Join". */}
+            {isCarFull ? (
+               <button 
+                  disabled
+                  className="px-10 py-3.5 rounded-full font-bold text-sm bg-slate-200 text-slate-500 cursor-not-allowed"
+               >
+                  已满员，等待开箱
+               </button>
+            ) : (
+               <button 
+                  onClick={handleCheckout}
+                  disabled={totalCount === 0}
+                  className={`px-10 py-3.5 rounded-full font-bold text-sm shadow-xl transform transition active:scale-95 ${totalCount === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white animate-pulse'}`}
+               >
+                  {totalCount === 0 ? '请先选位置' : '立即上车'}
+               </button>
+            )}
          </div>
       </div>
     </div>

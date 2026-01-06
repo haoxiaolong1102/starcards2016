@@ -1,15 +1,22 @@
 import React from 'react';
-import { User } from '../types';
-import { Settings, Package, Heart, Wallet } from 'lucide-react';
+import { User, Order } from '../types';
+import { Settings, Package, Heart, Wallet, ChevronRight } from 'lucide-react';
 
 interface ProfileProps {
   user: User;
+  orders: Order[]; // Added prop
   onViewOrders: () => void;
+  onViewCollection: () => void; // Added prop
   showToast: (msg: string) => void;
   onOpenMerchant?: () => void;
 }
 
-export const Profile: React.FC<ProfileProps> = ({ user, onViewOrders, showToast, onOpenMerchant }) => {
+export const Profile: React.FC<ProfileProps> = ({ user, orders, onViewOrders, onViewCollection, showToast, onOpenMerchant }) => {
+  // Calculate Stats
+  const joinedCount = orders.length;
+  const waitingOpenCount = orders.filter(o => o.status === 'PAID').length;
+  const totalCards = orders.reduce((acc, o) => acc + (o.hits?.length || 0), 0);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -33,19 +40,22 @@ export const Profile: React.FC<ProfileProps> = ({ user, onViewOrders, showToast,
         
         {/* Stats */}
         <div className="flex justify-between mt-6 px-2">
-           <div className="text-center">
-              <div className="font-bold text-lg text-slate-800">12</div>
+           <div className="text-center" onClick={onViewOrders}>
+              <div className="font-bold text-lg text-slate-800">{joinedCount}</div>
               <div className="text-xs text-slate-400">已上车</div>
            </div>
-           <div className="text-center">
-              <div className="font-bold text-lg text-slate-800">4</div>
+           <div className="text-center" onClick={onViewOrders}>
+              <div className="font-bold text-lg text-slate-800">{waitingOpenCount}</div>
               <div className="text-xs text-slate-400">待开箱</div>
            </div>
-           <div className="text-center">
-              <div className="font-bold text-lg text-slate-800">105</div>
-              <div className="text-xs text-slate-400">集卡数</div>
+           {/* Clickable Collection Stats */}
+           <div className="text-center cursor-pointer active:scale-95 transition-transform" onClick={onViewCollection}>
+              <div className="font-bold text-lg text-slate-900 flex justify-center items-center gap-1">
+                  {totalCards} <ChevronRight size={12} className="text-slate-300" />
+              </div>
+              <div className="text-xs text-violet-600 font-bold">集卡数</div>
            </div>
-           <div className="text-center">
+           <div className="text-center opacity-40">
               <div className="font-bold text-lg text-slate-800">0</div>
               <div className="text-xs text-slate-400">违约</div>
            </div>
@@ -57,7 +67,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onViewOrders, showToast,
          <MenuItem 
             icon={<Package size={20} />} 
             label="我的订单" 
-            hasBadge 
+            hasBadge={waitingOpenCount > 0}
             onClick={onViewOrders}
          />
          <MenuItem 

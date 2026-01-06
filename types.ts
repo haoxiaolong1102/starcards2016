@@ -6,8 +6,14 @@ export enum CarStatus {
 }
 
 export enum HostType {
-  MERCHANT = 'MERCHANT',     // 商家
-  FAN_LEADER = 'FAN_LEADER'  // 粉头
+  MERCHANT = 'MERCHANT',     // 商家 (A类)
+  FAN_LEADER = 'FAN_LEADER'  // 粉头 (B类)
+}
+
+export enum UserRole {
+  USER = 'USER',             // 普通用户 (只能买)
+  MERCHANT_A = 'MERCHANT_A', // A类: 直播间/卡店 (有货有执照)
+  MERCHANT_B = 'MERCHANT_B'  // B类: 粉头/应援会 (需绑定A类)
 }
 
 export interface ArtistSlot {
@@ -33,8 +39,10 @@ export interface Car {
   coverImage: string;
   slots: ArtistSlot[];
   description: string;
+  extraNote?: string; // 特别说明 (New)
   tags: string[]; // e.g., "含周边", "白敬亭专车"
   createdAt: string;
+  supplierName?: string; // If hosted by B, who supplies the goods?
 }
 
 export interface User {
@@ -42,7 +50,7 @@ export interface User {
   name: string;
   avatar: string;
   favoriteArtists: string[]; // e.g. ["白敬亭", "范丞丞"]
-  isMerchant?: boolean; // Add capability to switch view
+  role: UserRole; // Changed from isMerchant boolean
 }
 
 export interface Merchant {

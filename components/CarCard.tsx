@@ -1,6 +1,6 @@
 import React from 'react';
 import { Car, HostType, CarStatus } from '../types';
-import { Star, Zap } from 'lucide-react';
+import { Star, Zap, ShieldCheck, Users } from 'lucide-react';
 
 interface CarCardProps {
   car: Car;
@@ -46,8 +46,12 @@ export const CarCard: React.FC<CarCardProps> = ({ car, onClick }) => {
         
         {/* Host Avatar Overlay (Bottom Right of Image) */}
         <div className="absolute bottom-2 right-2 flex items-center">
-            <div className="w-6 h-6 rounded-full border border-white overflow-hidden shadow-md">
+            <div className={`w-6 h-6 rounded-full border border-white overflow-hidden shadow-md flex items-center justify-center ${car.hostType === HostType.MERCHANT ? 'bg-blue-600' : 'bg-pink-500'}`}>
                  <img src={`https://picsum.photos/seed/${car.hostName}/100`} className="w-full h-full object-cover" />
+            </div>
+            {/* Host Type Badge */}
+            <div className={`absolute -bottom-1 -right-1 text-[8px] px-1 rounded-full font-bold border border-white text-white ${car.hostType === HostType.MERCHANT ? 'bg-blue-600' : 'bg-pink-500'}`}>
+                {car.hostType === HostType.MERCHANT ? '商' : '粉'}
             </div>
         </div>
       </div>
@@ -62,11 +66,19 @@ export const CarCard: React.FC<CarCardProps> = ({ car, onClick }) => {
             {/* Host Name & Rating */}
             <div className="flex items-center gap-1 text-[10px] text-slate-400 mb-2">
                 <span className="truncate max-w-[80px]">{car.hostName}</span>
-                <div className="flex items-center text-orange-400 bg-orange-50 px-1 rounded-sm">
+                {car.hostType === HostType.MERCHANT && <ShieldCheck size={10} className="text-blue-500" />}
+                <div className="flex items-center text-orange-400 bg-orange-50 px-1 rounded-sm ml-auto">
                     <Star size={8} fill="currentColor" />
                     <span className="ml-0.5 font-bold">{car.hostRating}</span>
                 </div>
             </div>
+            
+            {/* Type B Binding Info */}
+            {car.hostType === HostType.FAN_LEADER && car.supplierName && (
+                <div className="text-[9px] text-slate-400 bg-slate-50 px-1 py-0.5 rounded mb-1 truncate">
+                    供货: {car.supplierName}
+                </div>
+            )}
         </div>
 
         {/* Footer: Progress & Price */}
