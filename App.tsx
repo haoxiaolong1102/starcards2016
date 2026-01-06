@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { CarDetail } from './pages/CarDetail';
@@ -13,10 +13,13 @@ import { MerchantRegistration } from './pages/MerchantRegistration';
 import { Collection } from './pages/Collection'; // Import
 import { PaymentModal } from './components/PaymentModal';
 import { Toast } from './components/Toast';
-import { Car, CarStatus, HostType, Merchant, Order, CardResult, UserRole, User, LiveInfo } from './types';
+import { Car, CarStatus, HostType, Merchant, Order, CardResult, UserRole, User, LiveInfo, MerchantWallet, BannerCampaign, BannerSlotId, Transaction, WithdrawalRequest } from './types';
+
+// --- CONSTANTS ---
+const PLATFORM_FEE_RATE = 0.025; // 2.5% Tech Service Fee
+const PAYMENT_FEE_RATE = 0.004;  // 0.4% Payment Channel Fee
 
 // --- MOCK DATA ---
-// DEFAULT USER IS NORMAL USER (UserRole.USER)
 const INITIAL_USER: User = {
   id: 'u1',
   name: '桃子气泡水',
@@ -25,7 +28,53 @@ const INITIAL_USER: User = {
   role: UserRole.USER 
 };
 
-// MOCK INITIAL ORDER FOR DEMO (So collection isn't empty)
+// Initial Banners
+const INITIAL_BANNERS: BannerCampaign[] = [
+    {
+        id: 'b1',
+        merchantName: '系统',
+        slotId: BannerSlotId.HOME_TOP,
+        imageUrl: 'https://picsum.photos/seed/banner1/800/400',
+        targetUrl: '',
+        title: '新人福利',
+        startTime: '2023-01-01',
+        endTime: '2024-12-31',
+        status: 'ACTIVE',
+        price: 0,
+        impressionCount: 1200,
+        clickCount: 450
+    },
+    {
+        id: 'b2',
+        merchantName: '小葵花卡社',
+        slotId: BannerSlotId.HOME_TOP,
+        imageUrl: 'https://picsum.photos/seed/banner2/800/400',
+        targetUrl: '',
+        title: '现在就出发3 现货秒发',
+        startTime: '2023-10-01',
+        endTime: '2023-11-01',
+        status: 'ACTIVE',
+        price: 500,
+        impressionCount: 800,
+        clickCount: 120
+    }
+];
+
+// Initial Wallets (Mock for "小葵花卡社" aka Current User if they are merchant)
+const INITIAL_WALLET: MerchantWallet = {
+    merchantName: '小葵花卡社',
+    totalIncome: 15420.00,
+    availableBalance: 3240.50,
+    pendingBalance: 1280.00,
+    frozenBalance: 0,
+    transactions: [
+        { id: 'tx_1', type: 'INCOME', amount: 96.00, date: '2023-10-20', description: '订单结算-白敬亭专车', status: 'SUCCESS' },
+        { id: 'tx_2', type: 'FEE', amount: -2.50, date: '2023-10-20', description: '平台技术服务费', status: 'SUCCESS' },
+    ],
+    withdrawals: []
+};
+
+// MOCK INITIAL ORDER
 const INITIAL_ORDERS: Order[] = [
     {
         id: 'o_mock_1',
@@ -111,10 +160,8 @@ const generateCars = (count: number): Car[] => {
 const INITIAL_CARS = generateCars(10);
 
 export default function App() {
-  const [user, setUser] = useState<User>(INITIAL_USER); // Track user state
+  const [user, setUser] = useState<User>(INITIAL_USER); 
   const [activeTab, setActiveTab] = useState('home');
-  
-  // State for different sub-views
   const [subView, setSubView] = useState<'none' | 'carDetail' | 'merchantDetail' | 'orders' | 'merchantDashboard' | 'orderResult' | 'merchantRegistration' | 'collection'>('none');
   
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
@@ -122,27 +169,147 @@ export default function App() {
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
   
   const [cars, setCars] = useState<Car[]>(INITIAL_CARS);
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS); // Use mock orders
+  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  
+  // Commercial State
+  const [banners, setBanners] = useState<BannerCampaign[]>(INITIAL_BANNERS);
+  const [myWallet, setMyWallet] = useState<MerchantWallet>(INITIAL_WALLET); // In real app, fetch based on user
 
   // Payment flow state
   const [showPayment, setShowPayment] = useState(false);
   const [pendingPurchase, setPendingPurchase] = useState<{items: {name:string, count:number}[], total: number} | null>(null);
 
-  // Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
   };
 
+  // --- SETTLEMENT ENGINE ---
+  // Mock function to "Complete" an order and trigger settlement
+  const handleCompleteOrder = (order: Order) => {
+      if (order.status === 'COMPLETED' || order.isSettled) return;
+
+      // 1. Calculate Fees
+      const serviceFee = Number((order.totalPrice * PLATFORM_FEE_RATE).toFixed(2));
+      const paymentFee = Number((order.totalPrice * PAYMENT_FEE_RATE).toFixed(2));
+      const settledAmount = Number((order.totalPrice - serviceFee - paymentFee).toFixed(2));
+
+      // 2. Update Order
+      const updatedOrder: Order = {
+          ...order,
+          status: 'COMPLETED',
+          isSettled: true,
+          serviceFee,
+          paymentFee,
+          settledAmount
+      };
+      setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
+
+      // 3. Update Wallet (Simulating the merchant is "小葵花卡社")
+      // In real app, check order.hostName === myWallet.merchantName
+      const newTransactions: Transaction[] = [
+          {
+              id: `tx_${Date.now()}_inc`,
+              type: 'INCOME',
+              amount: order.totalPrice,
+              date: new Date().toLocaleDateString(),
+              description: `订单结算-${order.carTitle}`,
+              status: 'SUCCESS'
+          },
+          {
+              id: `tx_${Date.now()}_fee`,
+              type: 'FEE',
+              amount: -(serviceFee + paymentFee),
+              date: new Date().toLocaleDateString(),
+              description: `平台服务费(2.5%)+支付费(0.4%)`,
+              status: 'SUCCESS'
+          }
+      ];
+
+      setMyWallet(prev => ({
+          ...prev,
+          totalIncome: prev.totalIncome + order.totalPrice,
+          availableBalance: prev.availableBalance + settledAmount,
+          transactions: [...newTransactions, ...prev.transactions]
+      }));
+
+      showToast(`订单已完成，入账 ¥${settledAmount}`);
+  };
+
+  // --- WITHDRAWAL LOGIC ---
+  const handleWithdraw = (amount: number) => {
+      // 1. Validation
+      if (amount < 100) {
+          showToast("最低提现金额 100 元");
+          return;
+      }
+      if (amount > myWallet.availableBalance) {
+          showToast("余额不足");
+          return;
+      }
+
+      // 2. Fee Logic (Mock: First one today is free, else 0.1%)
+      const todayString = new Date().toLocaleDateString();
+      const hasWithdrawToday = myWallet.withdrawals.some(w => w.requestDate === todayString);
+      const fee = hasWithdrawToday ? Number((amount * 0.001).toFixed(2)) : 0;
+      const actualAmount = amount - fee;
+
+      // 3. Create Request
+      const newWithdrawal: WithdrawalRequest = {
+          id: `wd_${Date.now()}`,
+          amount,
+          fee,
+          actualAmount,
+          requestDate: todayString,
+          expectedDate: 'T+1工作日',
+          status: 'PENDING'
+      };
+
+      // 4. Update Wallet
+      setMyWallet(prev => ({
+          ...prev,
+          availableBalance: prev.availableBalance - amount,
+          withdrawals: [newWithdrawal, ...prev.withdrawals],
+          transactions: [{
+              id: `tx_${Date.now()}_wd`,
+              type: 'WITHDRAW',
+              amount: -amount,
+              date: todayString,
+              description: `提现申请 ${hasWithdrawToday ? '(含手续费)' : '(免手续费)'}`,
+              status: 'PENDING'
+          }, ...prev.transactions]
+      }));
+
+      showToast("提现申请已提交，预计T+1到账");
+  };
+
+  // --- BANNER LOGIC ---
+  const handleCreateBanner = (slotId: BannerSlotId, title: string, img: string) => {
+      const newBanner: BannerCampaign = {
+          id: `b_${Date.now()}`,
+          merchantName: myWallet.merchantName,
+          slotId,
+          imageUrl: img,
+          targetUrl: '',
+          title,
+          startTime: new Date().toLocaleDateString(),
+          endTime: '待审核',
+          status: 'PENDING',
+          price: 0,
+          impressionCount: 0,
+          clickCount: 0
+      };
+      setBanners([...banners, newBanner]);
+      showToast("推广申请已提交，等待审核");
+  };
+
   // Logic: Handle Tab Changes
   const handleTabChange = (tab: string) => {
       setSubView('none'); 
       if (tab === 'create') {
-          // INTERCEPT: If user is just a USER, send to registration
           if (user.role === UserRole.USER) {
               setSubView('merchantRegistration');
-              // Don't change activeTab to 'create' visually, keep it on previous or show highlight
               setActiveTab('home'); 
               return;
           }
@@ -150,15 +317,13 @@ export default function App() {
       setActiveTab(tab);
   };
 
-  // Logic: Register Merchant
   const handleRegisterMerchant = (role: UserRole) => {
       setUser({ ...user, role });
       showToast(role === UserRole.MERCHANT_A ? "认证成功！您已成为A类商家" : "认证成功！您已成为B类粉头");
       setSubView('none');
-      setActiveTab('create'); // Now they can go to create
+      setActiveTab('create'); 
   };
 
-  // Routing Logic
   const handleCarClick = (car: Car) => {
     const latestCar = cars.find(c => c.id === car.id) || car;
     setSelectedCar(latestCar);
@@ -170,17 +335,10 @@ export default function App() {
     setSubView('merchantDetail');
   };
 
-  // Logic: When clicking host avatar in CarDetail
   const handleCarHostClick = (hostName: string) => {
-      // 1. Try to find in MOCK_MERCHANTS
       let merchant = MOCK_MERCHANTS.find(m => m.name === hostName);
-      
-      // 2. If not found (e.g., user is the host or it's a random generated host)
       if (!merchant) {
-          // Check if it is the current user
           const isCurrentUser = hostName === user.name;
-          
-          // Construct a temporary merchant object to view their profile
           merchant = {
               id: isCurrentUser ? 999 : Math.floor(Math.random() * 10000),
               name: hostName,
@@ -188,12 +346,11 @@ export default function App() {
               activeCars: cars.filter(c => c.hostName === hostName).length,
               tags: isCurrentUser ? ["我"] : ["车头"],
               isLive: false,
-              avatar: isCurrentUser ? user.avatar : `https://picsum.photos/seed/${hostName}/100`, // Use same seed logic as CarDetail
+              avatar: isCurrentUser ? user.avatar : `https://picsum.photos/seed/${hostName}/100`,
               fans: isCurrentUser ? 1 : Math.floor(Math.random() * 500),
               description: isCurrentUser ? "这是我在 StarCards 发布的拼团列表。" : "这位车头很神秘，还没有填写简介。"
           };
       }
-      
       setSelectedMerchant(merchant);
       setSubView('merchantDetail');
   };
@@ -215,7 +372,6 @@ export default function App() {
     setViewingOrder(null);
   };
 
-  // Entry to Merchant Dashboard (Only for approved merchants)
   const handleOpenMerchantDashboard = () => {
       if (user.role === UserRole.USER) {
           showToast("您还不是发车人，请先去申请");
@@ -225,28 +381,26 @@ export default function App() {
       setSubView('merchantDashboard');
   };
 
-  // Entry to Order Results
   const handleViewOrderResult = (order: Order) => {
       setViewingOrder(order);
       setSubView('orderResult');
   };
 
-  // Updated to handle custom slots from CreateCar
   const handlePublish = (data: any) => {
     const newCar: Car = {
         ...BASE_CAR_1,
         id: `new_${Date.now()}`,
-        title: `【${data.ipName}】${data.description.split('\n')[0]}`, // Simple title generation
+        title: `【${data.ipName}】${data.description.split('\n')[0]}`, 
         description: data.description,
-        extraNote: data.extraNote, // Capture extra note
+        extraNote: data.extraNote,
         ipName: data.ipName,
         boxCount: data.boxCount,
         hostName: user.name, 
         hostType: user.role === UserRole.MERCHANT_A ? HostType.MERCHANT : HostType.FAN_LEADER,
         hostRating: 5.0, 
         createdAt: new Date().toISOString(),
-        supplierName: user.name, // Default to self as per new requirement
-        slots: data.customSlots, // Use custom slots
+        supplierName: user.name,
+        slots: data.customSlots,
         coverImage: data.coverImage || BASE_CAR_1.coverImage
     };
     setCars([newCar, ...cars]);
@@ -255,17 +409,14 @@ export default function App() {
     setSubView('none');
   };
 
-  // Start Purchase
   const handlePurchaseStart = (items: { name: string; count: number }[], totalCost: number) => {
       setPendingPurchase({ items, total: totalCost });
       setShowPayment(true);
   };
 
-  // Confirm Purchase
   const handlePurchaseConfirm = () => {
       if (!selectedCar || !pendingPurchase) return;
 
-      // 1. Create Order
       const newOrder: Order = {
           id: `ord_${Date.now()}`,
           carId: selectedCar.id,
@@ -279,7 +430,6 @@ export default function App() {
       };
       setOrders([newOrder, ...orders]);
 
-      // 2. Update Car State (Global Inventory Deduction)
       const updatedCars = cars.map(c => {
           if (c.id === selectedCar.id) {
               const updatedSlots = c.slots.map(slot => {
@@ -309,7 +459,6 @@ export default function App() {
       showToast("支付成功！位置已锁定");
   };
 
-  // --- MERCHANT LOGIC: DISTRIBUTE CARDS ---
   const handleUpdateCarStatus = (carId: string, status: CarStatus, results: Record<string, CardResult[]>) => {
       const updatedCars = cars.map(c => c.id === carId ? { ...c, status: status } : c);
       setCars(updatedCars);
@@ -340,10 +489,15 @@ export default function App() {
           setOrders(updatedOrders);
           setViewingOrder({ ...viewingOrder, status: 'SHIPPED' });
           showToast("申请成功！仓库将在 24h 内发货");
+
+          // SIMULATE: After shipping, the order becomes COMPLETED automatically after some time
+          // Here we do it instantly for demo purposes to trigger settlement
+          setTimeout(() => {
+              handleCompleteOrder({ ...viewingOrder, status: 'SHIPPED' }); // Pass latest state
+          }, 3000);
       }
   };
 
-  // --- MERCHANT LOGIC: LIVE STREAMING ---
   const handleSetCarLive = (carId: string, liveInfo: LiveInfo | undefined) => {
       const updatedCars = cars.map(c => c.id === carId ? { ...c, liveInfo } : c);
       setCars(updatedCars);
@@ -354,9 +508,7 @@ export default function App() {
       }
   };
 
-  // View Router
   const renderContent = () => {
-    // 1. Intercepted Views
     if (subView === 'merchantRegistration') {
         return <MerchantRegistration onBack={handleBackToMain} onRegister={handleRegisterMerchant} />;
     }
@@ -364,14 +516,13 @@ export default function App() {
         return <Collection orders={orders} onBack={() => { setSubView('none'); setActiveTab('profile'); }} />;
     }
 
-    // 2. Full Screen Sub-Views
     if (subView === 'carDetail' && selectedCar) {
       return (
         <CarDetail 
             car={selectedCar} 
             onBack={handleBackToMain} 
             onPurchase={handlePurchaseStart} 
-            onHostClick={handleCarHostClick} // Pass the new handler
+            onHostClick={handleCarHostClick}
             showToast={showToast} 
         />
       );
@@ -383,31 +534,42 @@ export default function App() {
         return <OrderList orders={orders} onBack={() => { setSubView('none'); setActiveTab('profile'); }} showToast={showToast} onViewResult={handleViewOrderResult} />;
     }
     if (subView === 'merchantDashboard') {
-        return <MerchantDashboard cars={cars} onBack={handleBackToMain} onUpdateCarStatus={handleUpdateCarStatus} showToast={showToast} onSetLive={handleSetCarLive} />; // Pass handler
+        return (
+            <MerchantDashboard 
+                cars={cars} 
+                onBack={handleBackToMain} 
+                onUpdateCarStatus={handleUpdateCarStatus} 
+                showToast={showToast} 
+                onSetLive={handleSetCarLive} 
+                wallet={myWallet}
+                banners={banners}
+                onWithdraw={handleWithdraw}
+                onCreateBanner={handleCreateBanner}
+            />
+        ); 
     }
     if (subView === 'orderResult' && viewingOrder) {
         return <OrderResult order={viewingOrder} onBack={() => setSubView('orders')} showToast={showToast} onRequestShipping={handleRequestShipping} />;
     }
 
-    // 3. Tab Views
     if (activeTab === 'create') {
       return <CreateCar onBack={() => setActiveTab('home')} onPublish={handlePublish} userRole={user.role} />;
     }
 
     switch (activeTab) {
-      case 'home': return <Home cars={cars} onCarClick={handleCarClick} />;
+      case 'home': return <Home cars={cars} onCarClick={handleCarClick} banners={banners.filter(b => b.status === 'ACTIVE' && b.slotId === BannerSlotId.HOME_TOP)} />;
       case 'merchants': return <MerchantList onMerchantClick={handleMerchantClick} />;
       case 'profile': return (
         <Profile 
             user={user} 
-            orders={orders} // Pass orders
+            orders={orders}
             onViewOrders={handleViewOrders} 
-            onViewCollection={handleViewCollection} // Pass handler
+            onViewCollection={handleViewCollection}
             showToast={showToast} 
             onOpenMerchant={handleOpenMerchantDashboard} 
         />
       );
-      default: return <Home cars={cars} onCarClick={handleCarClick} />;
+      default: return <Home cars={cars} onCarClick={handleCarClick} banners={banners.filter(b => b.status === 'ACTIVE' && b.slotId === BannerSlotId.HOME_TOP)} />;
     }
   };
 
@@ -416,7 +578,7 @@ export default function App() {
         <Layout 
           activeTab={activeTab} 
           onTabChange={handleTabChange}
-          hideNav={subView !== 'none' || activeTab === 'create'} // Updated: Hide nav when creating car
+          hideNav={subView !== 'none' || activeTab === 'create'}
         >
         {renderContent()}
         </Layout>

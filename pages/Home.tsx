@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { Search, Flame, ChevronsRight } from 'lucide-react';
 import { CarCard } from '../components/CarCard';
-import { Car } from '../types';
+import { Car, BannerCampaign } from '../types';
 
 interface HomeProps {
   cars: Car[];
   onCarClick: (car: Car) => void;
+  banners?: BannerCampaign[]; // New prop
 }
 
 const CATEGORIES = ["推荐", "综艺", "影视", "爱豆", "动漫", "国乙"];
 
-export const Home: React.FC<HomeProps> = ({ cars, onCarClick }) => {
+export const Home: React.FC<HomeProps> = ({ cars, onCarClick, banners = [] }) => {
   const [activeCategory, setActiveCategory] = useState("推荐");
   const [search, setSearch] = useState("");
 
@@ -66,23 +67,37 @@ export const Home: React.FC<HomeProps> = ({ cars, onCarClick }) => {
         </div>
       </div>
 
-      {/* Banner */}
+      {/* BANNER CAROUSEL (New Feature) */}
       <div className="px-4 mt-4">
-        <div className="bg-slate-900 rounded-xl p-4 text-white shadow-lg shadow-slate-200 relative overflow-hidden">
-           <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600 rounded-full blur-[40px] opacity-40 translate-x-10 -translate-y-10"></div>
-           <div className="relative z-10 flex justify-between items-center">
-             <div>
-                <div className="flex items-center gap-1 text-violet-300 font-bold text-xs mb-1">
-                    <Flame size={12} fill="currentColor" />
-                    今日爆款
+        <div className="overflow-x-auto hide-scroll flex gap-3 snap-x snap-mandatory">
+            {banners.length > 0 ? banners.map(banner => (
+                <div key={banner.id} className="min-w-[85%] snap-center relative rounded-xl overflow-hidden shadow-md aspect-[2/1] group cursor-pointer">
+                    <img src={banner.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    <div className="absolute bottom-3 left-3 text-white">
+                        <div className="bg-white/20 backdrop-blur-md text-[10px] px-1.5 py-0.5 rounded w-fit mb-1">广告</div>
+                        <div className="font-bold text-sm">{banner.title}</div>
+                    </div>
                 </div>
-                <div className="text-lg font-bold leading-tight">《现在就出发3》</div>
-                <div className="text-xs text-slate-400 mt-1">全网 800+ 车队正在拼</div>
-             </div>
-             <button className="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold border border-white/10 active:scale-95 transition">
-                去看看
-             </button>
-           </div>
+            )) : (
+                /* Default Fallback Banner if no ads */
+                <div className="bg-slate-900 rounded-xl p-4 text-white shadow-lg shadow-slate-200 relative overflow-hidden w-full">
+                   <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600 rounded-full blur-[40px] opacity-40 translate-x-10 -translate-y-10"></div>
+                   <div className="relative z-10 flex justify-between items-center">
+                     <div>
+                        <div className="flex items-center gap-1 text-violet-300 font-bold text-xs mb-1">
+                            <Flame size={12} fill="currentColor" />
+                            今日爆款
+                        </div>
+                        <div className="text-lg font-bold leading-tight">《现在就出发3》</div>
+                        <div className="text-xs text-slate-400 mt-1">全网 800+ 车队正在拼</div>
+                     </div>
+                     <button className="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold border border-white/10 active:scale-95 transition">
+                        去看看
+                     </button>
+                   </div>
+                </div>
+            )}
         </div>
       </div>
 

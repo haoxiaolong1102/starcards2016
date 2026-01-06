@@ -18,8 +18,8 @@ export enum UserRole {
 }
 
 export interface LiveInfo {
-  platform: string; // e.g. '抖音', '小红书', 'B站'
-  roomId: string;   // e.g. '888888' or '搜 小葵花卡社'
+  platform: string;
+  roomId: string;
   isLive: boolean;
 }
 
@@ -30,14 +30,14 @@ export interface ArtistSlot {
   price: number;
   totalSpots: number;
   takenSpots: number;
-  isHot?: boolean; // 热门角色
+  isHot?: boolean;
 }
 
 export interface Car {
   id: string;
   title: string;
-  ipName: string; // e.g. "现在就出发3"
-  seriesName: string; // e.g. "第一弹"
+  ipName: string;
+  seriesName: string;
   boxCount: number;
   hostName: string;
   hostType: HostType;
@@ -46,19 +46,19 @@ export interface Car {
   coverImage: string;
   slots: ArtistSlot[];
   description: string;
-  extraNote?: string; // 特别说明
-  tags: string[]; // e.g., "含周边", "白敬亭专车"
+  extraNote?: string;
+  tags: string[];
   createdAt: string;
-  supplierName?: string; // If hosted by B, who supplies the goods?
-  liveInfo?: LiveInfo; // Added: External live streaming info
+  supplierName?: string;
+  liveInfo?: LiveInfo;
 }
 
 export interface User {
   id: string;
   name: string;
   avatar: string;
-  favoriteArtists: string[]; // e.g. ["白敬亭", "范丞丞"]
-  role: UserRole; // Changed from isMerchant boolean
+  favoriteArtists: string[];
+  role: UserRole;
 }
 
 export interface Merchant {
@@ -76,19 +76,78 @@ export interface Merchant {
 export interface CardResult {
   id: string;
   imageUrl: string;
-  name: string; // e.g. "SSP 亲签"
+  name: string;
   rarity: 'R' | 'SR' | 'SSR' | 'SSP';
   artistName: string;
 }
 
 export interface Order {
   id: string;
-  carId: string; // Link back to car
+  carId: string;
   carTitle: string;
   carImage: string;
-  items: { name: string; count: number }[]; // e.g. "白敬亭" x 2
+  items: { name: string; count: number }[];
   totalPrice: number;
-  status: 'PAID' | 'OPENED' | 'SHIPPED'; // Added OPENED
+  status: 'PAID' | 'OPENED' | 'SHIPPED' | 'COMPLETED'; // Added COMPLETED
   date: string;
-  hits?: CardResult[]; // The cards won in this order
+  hits?: CardResult[];
+  // Settlement Info
+  isSettled?: boolean;
+  serviceFee?: number; // 平台技术服务费
+  paymentFee?: number; // 支付通道费
+  settledAmount?: number; // 实际入账
+}
+
+// --- NEW: Wallet & Financials ---
+
+export interface Transaction {
+  id: string;
+  type: 'INCOME' | 'WITHDRAW' | 'FEE' | 'REFUND';
+  amount: number;
+  date: string;
+  description: string; // e.g., "订单结算-现在就出发3"
+  status: 'SUCCESS' | 'PENDING' | 'FAILED';
+}
+
+export interface WithdrawalRequest {
+  id: string;
+  amount: number;
+  fee: number;
+  actualAmount: number; // amount - fee
+  requestDate: string;
+  expectedDate: string; // T+1
+  status: 'PENDING' | 'COMPLETED' | 'REJECTED';
+}
+
+export interface MerchantWallet {
+  merchantName: string; // Key
+  totalIncome: number; // 历史总GMV
+  availableBalance: number; // 可提现
+  pendingBalance: number; // 结算中 (未确认收货)
+  frozenBalance: number; // 保证金/风控冻结
+  transactions: Transaction[];
+  withdrawals: WithdrawalRequest[];
+}
+
+// --- NEW: Banner & Ads ---
+
+export enum BannerSlotId {
+  HOME_TOP = 'HOME_TOP',
+  MERCHANT_LIST_TOP = 'MERCHANT_LIST_TOP',
+  CAR_DETAIL_MID = 'CAR_DETAIL_MID'
+}
+
+export interface BannerCampaign {
+  id: string;
+  merchantName: string;
+  slotId: BannerSlotId;
+  imageUrl: string;
+  targetUrl: string; // Simple string for now
+  title: string;
+  startTime: string;
+  endTime: string;
+  status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'REJECTED';
+  price: number; // Price paid for this slot
+  impressionCount: number;
+  clickCount: number;
 }
