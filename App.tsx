@@ -13,7 +13,7 @@ import { MerchantRegistration } from './pages/MerchantRegistration';
 import { Collection } from './pages/Collection'; // Import
 import { PaymentModal } from './components/PaymentModal';
 import { Toast } from './components/Toast';
-import { Car, CarStatus, HostType, Merchant, Order, CardResult, UserRole, User } from './types';
+import { Car, CarStatus, HostType, Merchant, Order, CardResult, UserRole, User, LiveInfo } from './types';
 
 // --- MOCK DATA ---
 // DEFAULT USER IS NORMAL USER (UserRole.USER)
@@ -343,6 +343,17 @@ export default function App() {
       }
   };
 
+  // --- MERCHANT LOGIC: LIVE STREAMING ---
+  const handleSetCarLive = (carId: string, liveInfo: LiveInfo | undefined) => {
+      const updatedCars = cars.map(c => c.id === carId ? { ...c, liveInfo } : c);
+      setCars(updatedCars);
+      if (liveInfo?.isLive) {
+          showToast(`已开启直播！用户可在详情页查看`);
+      } else {
+          showToast("直播状态已结束");
+      }
+  };
+
   // View Router
   const renderContent = () => {
     // 1. Intercepted Views
@@ -372,7 +383,7 @@ export default function App() {
         return <OrderList orders={orders} onBack={() => { setSubView('none'); setActiveTab('profile'); }} showToast={showToast} onViewResult={handleViewOrderResult} />;
     }
     if (subView === 'merchantDashboard') {
-        return <MerchantDashboard cars={cars} onBack={handleBackToMain} onUpdateCarStatus={handleUpdateCarStatus} showToast={showToast} />;
+        return <MerchantDashboard cars={cars} onBack={handleBackToMain} onUpdateCarStatus={handleUpdateCarStatus} showToast={showToast} onSetLive={handleSetCarLive} />; // Pass handler
     }
     if (subView === 'orderResult' && viewingOrder) {
         return <OrderResult order={viewingOrder} onBack={() => setSubView('orders')} showToast={showToast} onRequestShipping={handleRequestShipping} />;

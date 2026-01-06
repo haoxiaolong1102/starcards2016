@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Share2, Clock, Truck, AlertCircle, Users, FileText, ChevronRight } from 'lucide-react';
+import { ChevronLeft, Share2, Clock, Truck, AlertCircle, Users, FileText, ChevronRight, Tv, Copy } from 'lucide-react';
 import { Car, CarStatus } from '../types';
+import { RiskWarningModal } from '../components/RiskWarningModal';
 
 interface CarDetailProps {
   car: Car;
   onBack: () => void;
   onPurchase: (items: { name: string; count: number }[], totalCost: number) => void;
-  onHostClick: (hostName: string) => void; // Added prop
+  onHostClick: (hostName: string) => void; 
   showToast: (msg: string) => void;
 }
 
 export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, onHostClick, showToast }) => {
   const [selectedSlots, setSelectedSlots] = useState<Record<string, number>>({});
+  const [showRiskModal, setShowRiskModal] = useState(false); // State for modal
   
   const handleSlotChange = (slotId: string, delta: number, max: number) => {
     const current = selectedSlots[slotId] || 0;
@@ -38,12 +40,36 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, o
   const percent = Math.round((takenSpots / totalSpots) * 100);
   const remainingSpots = totalSpots - takenSpots;
 
-  const handleCheckout = () => {
+  // Intercept the checkout process
+  const handleCheckoutClick = () => {
+      // Check if user has agreed to risk warning in localStorage
+      const hasAgreed = localStorage.getItem('hasAgreedRisk');
+      if (!hasAgreed) {
+          setShowRiskModal(true);
+      } else {
+          proceedToPurchase();
+      }
+  };
+
+  const handleRiskAgree = () => {
+      localStorage.setItem('hasAgreedRisk', 'true');
+      setShowRiskModal(false);
+      proceedToPurchase();
+  };
+
+  const proceedToPurchase = () => {
       const items = Object.entries(selectedSlots).map(([id, count]) => {
           const slot = car.slots.find(s => s.id === id);
           return { name: slot?.name || '未知', count };
       });
       onPurchase(items, totalCost);
+  };
+
+  const handleCopyLive = () => {
+      if (car.liveInfo) {
+          navigator.clipboard.writeText(car.liveInfo.roomId);
+          showToast("已复制！请前往APP搜索");
+      }
   };
 
   const isCarFull = car.status === CarStatus.FULL || car.status === CarStatus.OPENED || car.status === CarStatus.SHIPPED;
@@ -77,7 +103,36 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, o
         </div>
       </div>
 
-      {/* Progress Bar Area (IMPORTANT) */}
+      {/* LIVE BANNER if active */}
+      {car.liveInfo?.isLive && (
+          <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between border-b border-white/10 relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-20 h-20 bg-red-600 blur-[30px] opacity-40"></div>
+               <div className="flex items-center gap-3 relative z-10">
+                   <div className="w-10 h-10 rounded-full border-2 border-red-500 p-0.5">
+                       <img src={`https://picsum.photos/seed/${car.hostName}/200`} className="w-full h-full rounded-full object-cover" />
+                   </div>
+                   <div>
+                       <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold">商家正在直播开箱</span>
+                            <span className="bg-red-600 text-[9px] px-1.5 rounded flex items-center gap-0.5 animate-pulse">
+                                <Tv size={8} /> LIVE
+                            </span>
+                       </div>
+                       <div className="text-xs text-slate-300 mt-0.5 flex items-center gap-1">
+                           在 <span className="text-white font-bold">{car.liveInfo.platform}</span> 搜索: {car.liveInfo.roomId}
+                       </div>
+                   </div>
+               </div>
+               <button 
+                  onClick={handleCopyLive}
+                  className="bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95 transition relative z-10"
+               >
+                   <Copy size={12}/> 复制
+               </button>
+          </div>
+      )}
+
+      {/* Progress Bar Area */}
       <div className="px-4 py-4 border-b border-gray-100 bg-violet-50/50">
           <div className="flex justify-between items-end mb-2">
               <div className="text-sm font-bold text-slate-800 flex items-center gap-1">
@@ -106,12 +161,13 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, o
             onClick={() => onHostClick(car.hostName)}
             className="flex items-center gap-2 flex-1 cursor-pointer active:opacity-70 transition-opacity"
         >
-          <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden border border-gray-100">
-             <img src={`https://picsum.photos/seed/${car.hostName}/200`} className="w-full h-full object-cover" alt="host" />
+          <div className={`w-10 h-10 rounded-full overflow-hidden border p-0.5 ${car.liveInfo?.isLive ? 'border-red-500' : 'border-gray-100'}`}>
+             <img src={`https://picsum.photos/seed/${car.hostName}/200`} className="w-full h-full object-cover rounded-full" alt="host" />
           </div>
           <div>
             <div className="flex items-center gap-1">
                 <span className="font-bold text-sm text-slate-800">{car.hostName}</span>
+                {car.liveInfo?.isLive && <span className="text-[8px] bg-red-100 text-red-600 px-1 rounded font-bold">直播中</span>}
                 <span className="text-[10px] bg-slate-100 text-slate-500 px-1 rounded">信誉 {car.hostRating}</span>
                 <ChevronRight size={14} className="text-slate-300" />
             </div>
@@ -240,7 +296,7 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, o
                </button>
             ) : (
                <button 
-                  onClick={handleCheckout}
+                  onClick={handleCheckoutClick}
                   disabled={totalCount === 0}
                   className={`px-10 py-3.5 rounded-full font-bold text-sm shadow-xl transform transition active:scale-95 ${totalCount === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white animate-pulse'}`}
                >
@@ -249,6 +305,15 @@ export const CarDetail: React.FC<CarDetailProps> = ({ car, onBack, onPurchase, o
             )}
          </div>
       </div>
+
+      {/* RISK MODAL */}
+      {showRiskModal && (
+          <RiskWarningModal 
+            onClose={() => setShowRiskModal(false)}
+            onAgree={handleRiskAgree}
+          />
+      )}
+
     </div>
   );
 };

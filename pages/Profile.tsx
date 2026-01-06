@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, Order } from '../types';
-import { Settings, Package, Heart, Wallet, ChevronRight } from 'lucide-react';
+import { Settings, Package, Heart, Wallet, ChevronRight, ShieldCheck } from 'lucide-react';
 
 interface ProfileProps {
   user: User;
@@ -24,7 +24,12 @@ export const Profile: React.FC<ProfileProps> = ({ user, orders, onViewOrders, on
         <div className="flex items-center gap-4">
           <img src={user.avatar} className="w-16 h-16 rounded-full border-2 border-white shadow-md" alt="Avatar" />
           <div className="flex-1">
-             <h1 className="text-xl font-bold text-slate-900">{user.name}</h1>
+             <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-900">{user.name}</h1>
+                <span className="flex items-center gap-0.5 bg-green-50 text-green-600 text-[9px] px-1.5 py-0.5 rounded font-bold border border-green-100">
+                    <ShieldCheck size={10} /> 已实名
+                </span>
+             </div>
              <div className="flex flex-wrap gap-1 mt-1">
                 {user.favoriteArtists.map(a => (
                    <span key={a} className="bg-pink-100 text-pink-600 text-[10px] px-2 py-0.5 rounded-full font-medium">
@@ -96,6 +101,9 @@ export const Profile: React.FC<ProfileProps> = ({ user, orders, onViewOrders, on
                进入
             </button>
          </div>
+         <p className="text-[10px] text-slate-400 text-center mt-3">
+             StarCards 仅提供技术服务，交易请遵守平台规范
+         </p>
       </div>
     </div>
   );

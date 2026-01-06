@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Check, Loader2, X } from 'lucide-react';
+import { Check, Loader2, X, ShieldAlert } from 'lucide-react';
 
 interface PaymentModalProps {
   totalCost: number;
@@ -36,10 +36,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ totalCost, onClose, 
                 <span className="text-2xl font-black text-slate-900">¥{totalCost}</span>
             </div>
 
+            {/* FRAUD WARNING */}
+            <div className="bg-red-50 border border-red-100 rounded-lg p-3 flex gap-2">
+                <ShieldAlert size={16} className="text-red-600 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-red-800 leading-snug">
+                    <span className="font-bold">安全提醒：</span>
+                    请勿私下添加车头微信/支付宝进行转账！私下交易无平台担保，若发生诈骗，平台无法追回损失。
+                </p>
+            </div>
+
             <div className="space-y-2">
                 <div className="flex items-center gap-3 p-3 border border-violet-100 bg-violet-50/50 rounded-xl cursor-pointer">
                     <div className="w-5 h-5 rounded-full border-[5px] border-violet-600 bg-white"></div>
-                    <span className="font-bold text-sm text-slate-700">微信支付</span>
+                    <span className="font-bold text-sm text-slate-700">微信支付 (资金平台托管)</span>
                 </div>
                 <div className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl opacity-50">
                     <div className="w-5 h-5 rounded-full border border-slate-300"></div>
@@ -53,13 +62,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ totalCost, onClose, 
             >
                 立即支付
             </button>
+            
+            <p className="text-[10px] text-slate-400 text-center">
+                支付后资金将由 StarCards 平台托管，确认收货后结算给卖家
+            </p>
           </div>
         )}
 
         {step === 'processing' && (
            <div className="flex flex-col items-center justify-center py-8">
               <Loader2 size={48} className="text-violet-600 animate-spin mb-4" />
-              <p className="font-bold text-slate-700">正在安全支付...</p>
+              <p className="font-bold text-slate-700">正在请求支付网关...</p>
            </div>
         )}
 
@@ -69,7 +82,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ totalCost, onClose, 
                     <Check size={32} className="text-white" strokeWidth={3} />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900">支付成功</h3>
-                <p className="text-sm text-slate-400 mt-1">正在跳转订单详情...</p>
+                <p className="text-sm text-slate-400 mt-1">资金已进入平台托管账户</p>
             </div>
         )}
       </div>

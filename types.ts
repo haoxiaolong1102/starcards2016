@@ -1,3 +1,4 @@
+
 export enum CarStatus {
   RECRUITING = 'RECRUITING', // 招募中
   FULL = 'FULL',             // 满员/待开
@@ -14,6 +15,12 @@ export enum UserRole {
   USER = 'USER',             // 普通用户 (只能买)
   MERCHANT_A = 'MERCHANT_A', // A类: 直播间/卡店 (有货有执照)
   MERCHANT_B = 'MERCHANT_B'  // B类: 粉头/应援会 (需绑定A类)
+}
+
+export interface LiveInfo {
+  platform: string; // e.g. '抖音', '小红书', 'B站'
+  roomId: string;   // e.g. '888888' or '搜 小葵花卡社'
+  isLive: boolean;
 }
 
 export interface ArtistSlot {
@@ -39,10 +46,11 @@ export interface Car {
   coverImage: string;
   slots: ArtistSlot[];
   description: string;
-  extraNote?: string; // 特别说明 (New)
+  extraNote?: string; // 特别说明
   tags: string[]; // e.g., "含周边", "白敬亭专车"
   createdAt: string;
   supplierName?: string; // If hosted by B, who supplies the goods?
+  liveInfo?: LiveInfo; // Added: External live streaming info
 }
 
 export interface User {
